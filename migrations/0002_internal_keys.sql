@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS internal_keys(name TEXT PRIMARY KEY,value TEXT NOT NULL);

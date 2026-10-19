@@ -21,8 +21,7 @@ In the Worker's Settings → Variables and Secrets, add these as Secret values:
 
 - ADMIN_PASSWORD: a unique password of at least 12 characters, shared only with admins.
 - MEMBER_PASSWORD: the existing shared member password.
-- RECORD_KEY_SECRET: a random value of at least 32 characters; keep stable.
-- SESSION_SECRET: a separate random value of at least 32 characters.
+The application automatically generates and stores its two internal security keys privately in D1. No additional values need to be entered. Existing explicitly configured keys are preserved on first initialization.
 
 Do not commit these values to GitHub. Before secrets are configured the API returns a setup error and exposes no records.
 Admin sessions use secure HttpOnly cookies, expire after eight hours, and can be logged out.
