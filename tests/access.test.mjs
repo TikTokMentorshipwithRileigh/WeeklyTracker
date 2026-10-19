@@ -1,0 +1,31 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {createApp} from '../server/app.mjs';
+const config={dbPath:':memory:',adminPassword:'test-admin-password',memberPassword:'test-member',recordSecret:'test-record-key',sessionSecret:'test-session-key-at-least-32-characters',origin:'https://tracker.example',secure:true};
+function setup(){const a=createApp(config);let cookie='';return {a,req(path,body,headers={}){return a.handle(new Request(config.origin+path,{method:body?'POST':'GET',headers:{Origin:config.origin,'Content-Type':'application/json',Cookie:cookie,...headers},body:body?JSON.stringify(body):undefined}),'test-ip')},async login(){const r=await this.req('/api/admin',{action:'login',password:config.adminPassword});cookie=r.headers.get('set-cookie').split(';')[0];return r}}}
+const valid={action:'checkin',name:'Alice Jones',shop:'Alice Shop',endDate:'2026-10-11',videos:4,samples:3,products:2,lives:1,gmv7:100,gmv28:300,wins:'A win',whines:'A struggle',questions:'A question'};
+const mh={'X-Member-Password':config.memberPassword};
+test('Password enforcement, member isolation, private notes, archive and restore',async()=>{const s=setup();try{
+ assert.equal((await s.req('/api/admin')).status,401);assert.equal((await s.req('/api/admin',{action:'login',password:config.memberPassword})).status,401);
+ assert.equal((await (await s.req('/api/tracker')).json()).needsPassword,true);assert.equal((await s.req('/api/tracker',valid)).status,401);
+ assert.equal((await s.req('/api/tracker',valid,mh)).status,200);assert.equal((await s.req('/api/tracker',{...valid,name:'Bob Jones',shop:'Bob Shop'},mh)).status,200);
+ const login=await s.login();assert.match(login.headers.get('set-cookie'),/HttpOnly; SameSite=Strict/);assert.match(login.headers.get('set-cookie'),/Secure/);
+ const d=await (await s.req('/api/admin')).json();assert.equal(d.members.length,2);assert.equal(d.entries.length,2);const entry=d.entries.find(e=>e.wins==='A win');
+ const n=await s.req('/api/admin',{action:'note',scope:'checkin',target:entry.id,text:'Private mentor note',expectedUpdatedAt:null});assert.equal(n.status,200);
+ assert.equal((await s.req('/api/admin',{action:'note',scope:'checkin',target:entry.id,text:'Overwrite',expectedUpdatedAt:null})).status,409);
+ const lookup=await (await s.req('/api/tracker',{action:'lookup',name:'Alice Jones',shop:'Alice Shop'},mh)).json();assert.equal(lookup.members.length,1);assert.equal(lookup.entries.length,1);assert.equal(lookup.notes,undefined);assert(!JSON.stringify(lookup).includes('Private mentor note'));
+ const aid=lookup.entries[0].id;assert.equal((await s.req('/api/admin',{action:'archive',id:aid})).status,200);
+ assert.equal((await (await s.req('/api/tracker',{action:'lookup',name:'Alice Jones',shop:'Alice Shop'},mh)).json()).entries.length,0);
+ assert.equal((await s.req('/api/tracker',valid,mh)).status,403,'Member cannot recreate a removed result');
+ assert.equal((await s.req('/api/admin',{action:'restore',id:aid})).status,200);
+ assert.equal((await (await s.req('/api/tracker',{action:'lookup',name:'Alice Jones',shop:'Alice Shop'},mh)).json()).entries.length,1);
+ assert.equal((await s.req('/api/admin',{action:'note',scope:'week',target:'2026-10-11',text:'Whole group notes'})).status,200);
+ assert.equal((await s.req('/api/admin',{action:'note',scope:'member',target:lookup.members[0].id,text:'Member notes'})).status,200);
+ assert.equal((await s.req('/api/admin',{action:'archive',id:aid},{Origin:'https://evil.example'})).status,403);
+ await s.req('/api/admin',{action:'logout'});assert.equal((await s.req('/api/admin')).status,401);
+ }finally{s.a.close()}});
+test('Invalid metrics, dates, record spoofing and idempotent edits',async()=>{const s=setup();try{for(const patch of [{videos:-1},{samples:1.2},{endDate:'2026-10-12'},{endDate:'2026-02-30'},{endDate:'2099-01-04'},{gmv7:null}])assert.equal((await s.req('/api/tracker',{...valid,...patch},mh)).status,400);
+ assert.equal((await s.req('/api/tracker',{...valid,memberId:'another-id'},mh)).status,403);
+ await s.req('/api/tracker',valid,mh);await s.req('/api/tracker',{...valid,videos:15},mh);
+ const d=await (await s.req('/api/tracker',{action:'lookup',name:valid.name,shop:valid.shop},mh)).json();assert.equal(d.entries.length,1);assert.equal(d.entries[0].videos,15);
+ assert.equal((await (await s.req('/api/tracker',{action:'lookup',name:'alice jones',shop:valid.shop},mh)).json()).entries.length,0);
+ }finally{s.a.close()}});
+test('Forged admin sessions and excessive login attempts are rejected',async()=>{const s=setup();try{assert.equal((await s.req('/api/admin',undefined,{Cookie:'tracker_admin=fake.signature'})).status,401);for(let i=0;i<20;i++)assert.equal((await s.req('/api/admin',{action:'login',password:'wrong'})).status,401);assert.equal((await s.req('/api/admin',{action:'login',password:'wrong'})).status,429)}finally{s.a.close()}});
