@@ -35,6 +35,28 @@ export function createApp({database,adminPassword,memberPassword,recordSecret,se
   if(!(await session(req)))return response({error:'Admin sign-in required.'},401);
   if(req.method==='GET')return response({members:(await db.prepare('SELECT * FROM members ORDER BY name').all()).map(safeMember),entries:(await db.prepare('SELECT * FROM checkins ORDER BY end_date DESC').all()).map(entry),notes:(await db.prepare('SELECT scope,target,text,updated_at AS updatedAt FROM notes').all())});
   if(b.action==='logout'){const raw=(req.headers.get('cookie')||'').match(/tracker_admin=([^;.]+)/)?.[1];if(raw)(await db.prepare('DELETE FROM sessions WHERE token=?').run(raw));return response({ok:true},200,{'Set-Cookie':cookie('')})}
+  if(b.action==='importMember'){
+   const m=b.member, rows=b.entries;
+   const validId=v=>typeof v==='string'&&v.length>0&&v.length<=160;
+   if(!m||!validId(m.id)||typeof m.name!=='string'||!m.name.trim()||m.name.length>120||typeof m.shop!=='string'||!m.shop.trim()||m.shop.length>120||!Array.isArray(rows)||rows.length>20)return response({error:'Invalid transfer records.'},400);
+   const name=m.name.trim(),shop=m.shop.trim(),accessKey=key(name,shop);
+   const existing=await db.prepare('SELECT * FROM members WHERE access_key=?').get(accessKey);
+   const byId=await db.prepare('SELECT * FROM members WHERE id=?').get(m.id);
+   if(byId&&byId.access_key!==accessKey)return response({error:'A member ID belongs to a different identity. Import stopped.'},409);
+   const memberId=existing?.id||m.id;
+   const statements=[database.prepare('INSERT INTO members VALUES(?,?,?,?,?) ON CONFLICT(access_key) DO NOTHING').bind(memberId,accessKey,name,shop,typeof m.createdAt==='string'?m.createdAt:new Date().toISOString())];
+   for(const e of rows){
+    if(!e||!validId(e.id)||typeof e.endDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(e.endDate)||isNaN(Date.parse(e.endDate))||new Date(e.endDate).toISOString().slice(0,10)!==e.endDate)return response({error:'Invalid check-in date or ID.'},400);
+    const d={reportingCycle:e.reportingCycle==='sunday'?'sunday':null,updatedAt:typeof e.updatedAt==='string'?e.updatedAt:new Date().toISOString()};
+    for(const k of ['videos','samples','products','lives','gmv7','gmv28']){if(typeof e[k]!=='number'||!Number.isFinite(e[k])||e[k]<0)return response({error:'Invalid imported metrics.'},400);d[k]=e[k]}
+    for(const k of ['wins','whines','questions']){if(typeof e[k]!=='string'||e[k].length>5000)return response({error:'Invalid imported comments.'},400);d[k]=e[k]}
+    const old=await db.prepare('SELECT member_id,end_date FROM checkins WHERE id=?').get(e.id);
+    if(old&&(old.member_id!==memberId||old.end_date!==e.endDate))return response({error:'A check-in ID conflicts with another record. Import stopped.'},409);
+    statements.push(database.prepare('INSERT INTO checkins(id,member_id,end_date,data) VALUES(?,?,?,?) ON CONFLICT DO NOTHING').bind(e.id,memberId,e.endDate,JSON.stringify(d)));
+   }
+   const results=await database.batch(statements);
+   return response({ok:true,imported:results.slice(1).reduce((n,r)=>n+(r.meta.changes||0),0)});
+  }
   if(b.action==='note'){
    if(!['checkin','member','week'].includes(b.scope)||typeof b.target!=='string'||typeof b.text!=='string'||b.text.length>10000)return response({error:'Invalid note'},400);
    const exists=b.scope==='week'?validWeek(b.target):(await db.prepare(`SELECT 1 FROM ${b.scope==='member'?'members':'checkins'} WHERE id=?`).get(b.target));

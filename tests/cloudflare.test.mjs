@@ -29,3 +29,21 @@ test('Invalid metrics, dates, record spoofing and idempotent edits',async()=>{co
  assert.equal((await (await s.req('/api/tracker',{action:'lookup',name:'alice jones',shop:valid.shop},mh)).json()).entries.length,0);
  }finally{s.a.close()}});
 test('Forged admin sessions and excessive login attempts are rejected',async()=>{const s=setup();try{assert.equal((await s.req('/api/admin',undefined,{Cookie:'tracker_admin=fake.signature'})).status,401);for(let i=0;i<20;i++)assert.equal((await s.req('/api/admin',{action:'login',password:'wrong'})).status,401);assert.equal((await s.req('/api/admin',{action:'login',password:'wrong'})).status,429)}finally{s.a.close()}});
+test('Admin import preserves identities, notes and removed or newer records on retry',async()=>{const s=setup();try{
+ const member={id:'old-member',name:'Alice Jones',shop:'Alice Shop',createdAt:'2026-09-01'};
+ const entry={...valid,id:'old-entry',memberId:member.id,updatedAt:'2026-10-12T12:00:00Z',reportingCycle:'sunday'};
+ const payload={action:'importMember',member,entries:[entry]};
+ assert.equal((await s.req('/api/admin',payload)).status,401);
+ await s.login();assert.equal((await (await s.req('/api/admin',payload)).json()).imported,1);
+ const lookup=await (await s.req('/api/tracker',{action:'lookup',name:member.name,shop:member.shop},mh)).json();
+ assert.equal(lookup.entries[0].id,entry.id);assert.equal(lookup.entries[0].questions,entry.questions);
+ await s.req('/api/admin',{action:'note',scope:'checkin',target:entry.id,text:'Keep this note'});
+ await s.req('/api/tracker',{...valid,videos:99},mh);
+ await s.req('/api/admin',{action:'archive',id:entry.id});
+ assert.equal((await (await s.req('/api/admin',payload)).json()).imported,0);
+ let d=await (await s.req('/api/admin')).json();assert.equal(d.members.length,1);assert.equal(d.entries.length,1);assert.equal(d.entries[0].videos,99);assert(d.entries[0].archivedAt);assert.equal(d.notes[0].text,'Keep this note');
+ assert.equal((await s.req('/api/admin',{...payload,member:{...member,shop:'Different'}})).status,409);
+ assert.equal((await s.req('/api/admin',{...payload,entries:[{...entry,id:'bad',videos:-1}]})).status,400);
+ assert.equal((await s.req('/api/admin',{...payload,member:{...member,id:'alternate-source-id'}})).status,200);
+ d=await (await s.req('/api/admin')).json();assert.equal(d.members.length,1);assert.equal(d.entries.length,1);
+ }finally{s.a.close()}});
