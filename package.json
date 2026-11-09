@@ -9,19 +9,22 @@
     "start": "node server/start.mjs",
     "test": "node --test tests/*.test.mjs",
     "build:standalone": "vite build --base=/",
-    "build:cloudflare": "VITE_STANDALONE=true vite build --base=/",
-    "deploy:cloudflare": "wrangler d1 migrations apply DB --remote && wrangler deploy"
+    "build:cloudflare": "node --input-type=module -e \"process.env.VITE_STANDALONE='true'; const {build}=await import('vite'); await build({base:'/'});\"",
+    "deploy:cloudflare": "wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "typecheck": "tsc --noEmit --jsx react-jsx --module ESNext --moduleResolution bundler --target ES2022 --lib ES2022,DOM --skipLibCheck --types vite/client src/main.tsx"
   },
   "dependencies": {
+    "lucide-react": "1.31.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "recharts": "3.8.0",
-    "lucide-react": "1.31.0"
+    "recharts": "3.8.0"
   },
   "devDependencies": {
-    "vite": "8.0.13",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.0.2",
     "typescript": "5.9.3",
+    "vite": "8.0.13",
     "wrangler": "4.92.0"
   },
   "engines": {

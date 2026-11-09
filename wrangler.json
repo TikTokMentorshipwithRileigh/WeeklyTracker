@@ -21,5 +21,11 @@
       "database_id": "5fd0719f-3dae-4aa8-847e-7180cc052fd5",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "ENABLE_WEEKLY_AI": "true"
+  }
 }

@@ -1,7 +1,8 @@
+import {weeklySummary} from './weekly-summary.mjs';
 import {createHmac,randomUUID,randomBytes,timingSafeEqual,createHash} from 'node:crypto';
 const hash=s=>createHash('sha256').update(String(s)).digest();
 const same=(a,b)=>timingSafeEqual(hash(a),hash(b));
-export function createApp({database,adminPassword,memberPassword,recordSecret,sessionSecret,origin,secure=true}){
+export function createApp({database,adminPassword,memberPassword,recordSecret,sessionSecret,origin,secure=true,ai,enableWeeklyAI=false}){
  if(!adminPassword||adminPassword.length<12||!memberPassword||!recordSecret||!sessionSecret||sessionSecret.length<32||same(adminPassword,memberPassword))throw Error('Configure distinct admin/member passwords, record key, and session secret. Admin password must be at least 12 characters.');
  const db={prepare(sql){return {async get(...args){return database.prepare(sql).bind(...args).first()},async all(...args){return (await database.prepare(sql).bind(...args).all()).results},async run(...args){return (await database.prepare(sql).bind(...args).run()).meta}}}};
  const sign=s=>createHmac('sha256',sessionSecret).update(s).digest('base64url');
@@ -34,6 +35,12 @@ export function createApp({database,adminPassword,memberPassword,recordSecret,se
   }
   if(!(await session(req)))return response({error:'Admin sign-in required.'},401);
   if(req.method==='GET')return response({members:(await db.prepare('SELECT * FROM members ORDER BY name').all()).map(safeMember),entries:(await db.prepare('SELECT * FROM checkins ORDER BY end_date DESC').all()).map(entry),notes:(await db.prepare('SELECT scope,target,text,updated_at AS updatedAt FROM notes').all())});
+  if(b.action==='weeklySummary'){
+   if(!validWeek(b.week))return response({error:'Choose a completed Sunday-Saturday reporting week.',code:'invalid_week'},400);
+   const priorSaturday=new Date(b.week+'T12:00:00Z');priorSaturday.setUTCDate(priorSaturday.getUTCDate()-1);
+   try{return response(await weeklySummary({database,ai,enabled:enableWeeklyAI,week:b.week,rows:await db.prepare('SELECT * FROM checkins WHERE end_date IN (?,?) AND archived_at IS NULL ORDER BY id').all(b.week,priorSaturday.toISOString().slice(0,10)),rateLimit:()=>limit('all-admins','weekly-summary')}));}
+   catch(error){return response({error:error.status?error.message:'Unable to generate this summary.',code:error.code||'summary_failed'},error.status||502)}
+  }
   if(b.action==='logout'){const raw=(req.headers.get('cookie')||'').match(/tracker_admin=([^;.]+)/)?.[1];if(raw)(await db.prepare('DELETE FROM sessions WHERE token=?').run(raw));return response({ok:true},200,{'Set-Cookie':cookie('')})}
   if(b.action==='importMember'){
    const m=b.member, rows=b.entries;
