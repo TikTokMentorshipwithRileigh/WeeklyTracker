@@ -26,7 +26,7 @@ export default function CheckinFollowUp({members,entries,now,onOpen}:Props) {
    {member.members.length>1&&<small><strong>{member.members.length} records counted together.</strong> {member.matchReasons.join('. ')}.</small>}
    {member.possibleMatches.length>0&&<div><small><strong>Possible matches, not counted together:</strong></small>{member.possibleMatches.map(m=><div key={m.id}><button type="button" className="member-open" onClick={()=>onOpen(m.id)}>{m.name}</button><small>{m.shop}</small></div>)}</div>}
   </td><td>{member.lastSavedAt?<button type="button" className="member-open" onClick={()=>onOpen(member.lastSavedMemberId!)} aria-label={'Open latest check-in record for '+member.name}>{date(member.lastSavedAt)}</button>:'None on record'}</td><td>{status(member)}{member.possibleMatches.length>0&&<small>Name match needs review</small>}</td></tr>)}</tbody></table></div>:<p className="followup-empty" role="status">{view==='overdue'?'No people with dated check-ins are overdue.':view==='noCheckins'?'Every person has an active check-in on record.':view==='unknown'?'No check-in dates need review.':view==='nameMatches'?'No clear name variants found.':'No uncertain name matches need review.'}</p>}
-  <small className="followup-footer">{followUp.recentCount} people checked in within 14 days � Matched name variants count once � Checked {date(now)} � Refresh to fetch new submissions.</small>
+  <small className="followup-footer">{followUp.recentCount} people checked in within 14 days · Matched name variants count once · Checked {date(now)} · Refresh to fetch new submissions.</small>
  </section>;
 }
 

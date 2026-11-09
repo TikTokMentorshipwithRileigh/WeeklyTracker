@@ -1,6 +1,6 @@
 # Weekly AI summary
 
-The admin panel requests one summary for a completed reporting week (the stored Sunday `endDate` represents the preceding Sunday-Saturday). All active students' check-ins for that week are included, independent of UI filters. Only the latest record per member is used; Trash is excluded. The model receives pseudonymous source labels, check-in answers and six metrics, not roster names, shop names, member IDs or private admin notes. Free-text answers may themselves contain personal or sensitive information. Review consent and Cloudflare data processing terms before enabling.
+The admin panel requests one summary for a completed reporting week (the stored Sunday `endDate` represents the preceding Sunday–Saturday). All active students' check-ins for that week are included, independent of UI filters. Only the latest record per member is used; Trash is excluded. The model receives pseudonymous source labels, check-in answers and six metrics, not roster names, shop names, member IDs or private admin notes. Free-text answers may themselves contain personal or sensitive information. Review consent and Cloudflare data processing terms before enabling.
 
 The production configuration includes the owner-approved Workers AI binding named `AI` and the Worker variable `ENABLE_WEEKLY_AI` set to the string `true`. No records are sent until an admin clicks Generate summary. The model is `@cf/meta/llama-3.3-70b-instruct-fp8-fast`. Leave the flag unset to disable. No API key is required by this binding. Existing deployments remain functional without it.
 
@@ -10,7 +10,7 @@ Source text is untrusted JSON in a user message; the fixed system prompt explici
 
 UI integration: `WeeklySummary` from `src/weekly-summary.tsx` accepts `week`, `revision` (use `data.entries` to invalidate changed data), and `onSource(checkinId)` to navigate to the original record. Selection/source changes unmount and abort the old request, preventing stale results. No request is sent until Generate is clicked.
 
-Legacy reporting periods: summaries query the selected Sunday and its preceding Saturday. Sunday-cycle records are included only at the selected Sunday; legacy records are included only at the preceding Saturday, so both represent the same Sunday-Saturday interval. Incompatible records in those candidate dates are excluded and counted in `excludedCount` (also returned for `no_data`). Latest-per-member selection occurs after this interval filter. Cache hits return the current excluded count.
+Legacy reporting periods: summaries query the selected Sunday and its preceding Saturday. Sunday-cycle records are included only at the selected Sunday; legacy records are included only at the preceding Saturday, so both represent the same Sunday–Saturday interval. Incompatible records in those candidate dates are excluded and counted in `excludedCount` (also returned for `no_data`). Latest-per-member selection occurs after this interval filter. Cache hits return the current excluded count.
 
 ## Check-in follow-up
 

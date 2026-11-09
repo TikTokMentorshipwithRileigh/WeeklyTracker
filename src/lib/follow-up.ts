@@ -15,7 +15,7 @@ type Match = { automatic: boolean; reason: string };
 
 // These heuristics are for the private follow-up display only, never member access or stored identities.
 function words(value: string): string[] {
- return value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/['']/g, '')
+ return value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/['’]/g, '')
   .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).filter(Boolean);
 }
 function nameWords(value: string): string[] {

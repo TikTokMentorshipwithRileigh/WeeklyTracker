@@ -33,7 +33,7 @@ test('offset timestamps compare as instants across daylight-saving changes',()=>
 const person=(id,name,shop='Example Shop')=>({id,name,shop});
 test('normalizes full-name case, accents, punctuation, spacing and comma order across shops',()=>{
  const members=[
-  person('a','  Zo� O'Connell ','Old Shop'),person('b',"ZOE O'CONNELL",'New Shop'),person('c','OConnell, Zoe','Other Shop')
+  person('a','  Zoë O’Connell ','Old Shop'),person('b',"ZOE O'CONNELL",'New Shop'),person('c','OConnell, Zoe','Other Shop')
  ];
  const snapshot=JSON.stringify(members),entries=[e('a',30),e('b',1)];
  const result=buildFollowUp(members,entries,now);
