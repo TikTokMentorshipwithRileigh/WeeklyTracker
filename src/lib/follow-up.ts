@@ -43,9 +43,9 @@ function compareNames(a: Member, b: Member): Match | null {
  if (!left.length || !right.length) return null;
  const shopA = words(a.shop).join(''), shopB = words(b.shop).join('');
  const sameShop = Boolean(shopA && shopA === shopB);
- const fullNames = left.length >= 2 && right.length >= 2;
- if (left.join('') === right.join('') && (fullNames || sameShop)) {
-  return { automatic: true, reason: 'Same name after spacing, punctuation and case normalization' };
+ const fullNames = [left, right].every(parts => parts.length >= 2 && parts[0].length > 1 && parts[parts.length - 1].length > 1);
+ if (left.join('') === right.join('')) {
+  return { automatic: fullNames || sameShop, reason: fullNames || sameShop ? 'Same name after spacing, punctuation and case normalization' : 'Same abbreviated name with a different shop; review before matching' };
  }
  // A first name alone is only a candidate with the same shop and a uniquely compatible full name.
  if (left.length === 1 || right.length === 1) {
@@ -106,7 +106,7 @@ export function buildFollowUp(members: Member[], entries: Entry[], now = Date.no
    const exactGroups = new Map<string, number[]>();
    for (const index of component) {
     const member = ordered[index], parts = nameWords(member.name);
-    const key = JSON.stringify([parts.join(''), parts.length >= 2 ? null : words(member.shop).join('')]);
+    const key = JSON.stringify([parts.join(''), parts.length >= 2 && parts[0].length > 1 && parts[parts.length - 1].length > 1 ? null : words(member.shop).join('')]);
     const exact = exactGroups.get(key) || []; exact.push(index); exactGroups.set(key, exact);
    }
    groups.push(...exactGroups.values());

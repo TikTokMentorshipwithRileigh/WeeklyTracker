@@ -140,3 +140,14 @@ test('ambiguous last initials do not join students with different surnames',()=>
  assert.equal(result.nameMatches.length,0);assert.deepEqual(result.overdue.map(x=>x.id),['a']);
  assert.equal(result.possibleMatches.length,3);
 });
+
+test('identical initials at different shops do not count as the same full name',()=>{
+ for(const name of ['J Smith','Alex M','J S']){
+  const result=buildFollowUp([person('a',name,'Shop A'),person('b',name,'Shop B')],[e('a',30),e('b',1)],now);
+  assert.equal(result.overdue.length,1);assert.equal(result.nameMatches.length,0);assert.equal(result.possibleMatches.length,2);
+ }
+ const members=[person('a','J Smith','Shop A'),person('b','John Smith','Shop A'),person('c','J Smith','Shop B'),person('d','John Smith','Shop B')];
+ const result=buildFollowUp(members,[e('a',30),e('c',1)],now);
+ assert.deepEqual(result.overdue.map(x=>x.id),['a']);assert.equal(result.nameMatches.length,1);
+ assert.deepEqual(result.nameMatches[0].members.map(x=>x.id).sort(),['b','d']);
+});

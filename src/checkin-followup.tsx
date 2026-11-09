@@ -12,7 +12,7 @@ export default function CheckinFollowUp({members,entries,now,onOpen}:Props) {
  return <section className="panel followup-panel" aria-labelledby="followup-title">
   <div className="section-heading"><div><div className="eyebrow">KEEP EVERYONE CONNECTED</div><h2 id="followup-title">Check-in follow-up</h2></div><span className="followup-count">{followUp.overdue.length} overdue</span></div>
   <p>No active check-in saved in the last 14 days. Looks across all weeks and members, independent of the filters below.</p>
-  <p className="admin-table-help">Clear name variants count as one person here, using the newest saved check-in across those records. Exact names ignore case, accents, spacing and punctuation; abbreviations or small typos also need a matching shop. Ambiguous matches stay separate for review. This does not merge records or change member access.</p>
+  <p className="admin-table-help">Clear name variants count as one person here, using the newest saved check-in across those records. Full names ignore case, accents, spacing and punctuation; abbreviations or small typos also need a matching shop. Ambiguous matches stay separate for review. This does not merge records or change member access.</p>
   <p className="admin-table-help">Based on when a check-in was saved, including edits, not the week being reported. Trash is excluded. Dates are shown in Central time.</p>
   <div className="followup-tabs" role="group" aria-label="Follow-up categories">
    {tabs.map(([key,label]) => <button key={key} type="button" className={view===key?'admin-tab active':'admin-tab'} aria-pressed={view===key} onClick={()=>setView(key)}>{label} ({followUp[key].length})</button>)}
